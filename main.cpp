@@ -5,19 +5,21 @@
 using namespace std;
 fstream czlogWriter, xflogWriter, sortxflogWriter, sortxflogWriter_quick_sort, windowlogWriter;
 fstream xflogReader;
-//FILE *xflogWriter1;
-//errno_t err;
+extern int xflogLine;
+/*批量开户的逻辑*/
 void batchKH() {
 	readKHFile();
 	return;
 }
+/*批量卡操作（不包括充值和开户）*/
 void batchCZ() {
 	readCZFile();
 	return;
 }
+/*表示用户是否确定执行操作*/
 bool ack() {
 	cout << "是否操作?" << endl;
-	char flag;
+	int flag;
 	cin >> flag;
 	if (flag) {
 		return true;
@@ -27,18 +29,26 @@ bool ack() {
 		return false;
 	}
 }
+/*卡片管理模块的接口*/
 void CZ() {
 	string meg;
-	cout << "输入学号、操作和信息,格式为 学号,操作代码(,姓名,如果有的话)(,其他信息,如充值金额)" << endl;
+	cout << "输入学号、操作和信息,格式为 操作代码(,学号,如果有的话)(,姓名,如果有的话)(,其他信息,如充值金额)" << endl;
 	cout << "操作代码列表:" << endl;
-	cout << "1 开户 2 销户 3 发卡 4 挂失 5 解挂 6 补卡 7 充值" << endl;
+	cout << "1 开户 2 销户 3 发卡 4 挂失 5 解挂 6 补卡 7 充值 8 读入并进行批量操作(不允许已有数据) 0 退出" << endl;
 	while (cin >> meg) {
 		if (meg[0] == '0') break;
-		string stuid = meg.substr(0, 10);
-		char type = meg[11];
+		if (meg[0] == '8') {
+			batchKH();
+			batchCZ();
+			cout << "批量操作完成,即将返回主界面" << endl;
+			system("pause");
+			break;
+		}
+		string stuid = meg.substr(2, 10);
+		char type = meg[0];
 		if (type == '1') {
 			string name = meg.substr(13, meg.size() - 13);
-			cout << stuid << ' ' << name << endl;
+			cout << "充值学号" << stuid << " 姓名:" << name << endl;
 			CreateAct(stuid, name, "2021090109220510");
 		}
 		else if (type == '2') {
@@ -63,10 +73,10 @@ void CZ() {
 			if (ack()) MakeupCard(stuid, "");
 		}
 		else if (type == '7') {
-			int val = stoi(meg.substr(13, meg.size() - 13));
+			double val = stod(meg.substr(13));
 			showActMeg(stuid);
 			cout << "是否充值" << val << "元?" << endl;
-			char flag;
+			int flag;
 			cin >> flag;
 			if (flag) {
 				Recharge(stuid, double(val), "");
@@ -82,19 +92,28 @@ void CZ() {
 	}
 	cout << "结束卡片操作" << endl;
 	system("pause");
+	system("cls");
 	return;
 }
-void batchCard() {
+/*打开所有的Writer方便日志写入*/
+void openWriter() {
 	windowlogWriter.open("E:\\classdesign\\windowslog.txt", ios::out);
 	czlogWriter.open("E:\\classdesign\\czlog.txt", ios::out);
 	xflogWriter.open("E:\\classdesign\\xflog.txt", ios::out);
 	sortxflogWriter.open("E:\\classdesign\\xflog(sorted by multimerge).txt", ios::out);
 	sortxflogWriter_quick_sort.open("E:\\classdesign\\xflog(sorted by quicksort).txt", ios::out);
-	/*
-	errno_t err;
-	if (err = fopen_s(&xflogWriter1, "E:\\classdesign\\xflog.txt", "w+") != 0) {
-		printf("The file 'E:\\classdesign\\xflog.txt' was not opened\n");
-	}*/
+}
+/*关闭所有的Writer保证安全*/
+void closeWriter() {
+	czlogWriter.close();
+	xflogWriter.close();
+	sortxflogWriter.close();
+	sortxflogWriter_quick_sort.close();
+	windowlogWriter.close();
+}
+/*批量挂失/补卡、充值与消费的逻辑*/
+void batchCard() {
+
 	batchKH();
 	batchCZ();
 	initWindows();
@@ -102,29 +121,53 @@ void batchCard() {
 	batchXF();
 	MultipleMerge();
 	QuickSort();
-	czlogWriter.close();
-	xflogWriter.close();
-	sortxflogWriter.close();
-	sortxflogWriter_quick_sort.close();
-	windowlogWriter.close();
-	/*
-	if (fclose(xflogWriter1)) {
-		printf("The file ''E:\\classdesign\\xflog.txt' was not closed\n");
-	}*/
 }
-void XF() {
-	string meg, cardid;
-	while (1) {
-		cout << "充值请输入卡号+充值金额,格式为卡号,金额" << endl;
-		cin >> meg;
-		cardid = meg.substr(0, 7);
-		double val = stod(meg.substr(8));
-		sConsume(cardid, val);
+
+int main() {
+	
+	Welcome();		//初始化界面
+	if (menu() == 0) {		//用户判断是否进入系统
+		system("cls");
+		cout << "退出系统!" << endl;
+		return 0;
+	}
+	else {
+		system("cls");
+		cout << "进入系统!" << endl;
 		system("pause");
 	}
-}
-int main() {
-	batchCard();
-	//search();
+	system("cls");
+	openWriter();
+	while (1) {
+		cout << "************************欢迎进入校园卡管理系统!************************" << endl;
+		cout << "1.进入卡片管理模块" << endl;
+		cout << "2.进入食堂管理模块" << endl;
+		cout << "3.进入查询统计模块" << endl;
+		cout << "4.退出系统" << endl;
+		int choice;
+		cin >> choice;
+		if (choice == 1) {
+			system("cls");
+			CZ();
+		}
+		else if (choice == 2) {
+			system("cls");
+			ShowCartoon();
+		}
+		else if (choice == 3) {
+			system("cls");
+			search();
+		}
+		else if (choice == 4) {
+			cout << "退出系统!" << endl;
+			return 0;
+		}
+		else {
+			cout << "非法输入，请重试" << endl;
+		}
+		system("cls");
+	}
+	closeWriter();
+	
 	return 0;
 }
